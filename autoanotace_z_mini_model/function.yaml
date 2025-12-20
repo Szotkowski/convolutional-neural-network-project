@@ -1,0 +1,53 @@
+apiVersion: "nuclio.io/v1"
+kind: NuclioFunction
+metadata:
+  name: rfdetr-object-detection-cpu
+  namespace: cvat
+  annotations:
+    name: RF-DETR (Medium, CPU)
+    type: detector
+    framework: PyTorch
+    spec: |
+      [
+        { "id": 1, "name": "lightbulb", "type": "rectangle" },
+        { "id": 2, "name": "sea_shell", "type": "rectangle" }
+      ]
+spec:
+  description: "RF-DETR Medium with custom weights on CPU"
+  handler: main:handler
+  runtime: python:3.11
+  eventTimeout: 8m
+  env:
+    - name: MODEL_PATH
+      value: /opt/nuclio/models/weights.pth
+    - name: CLASSES
+      value: lightbulb,sea_shell
+    - name: CONFIDENCE_THRESHOLD
+      value: "0.50"
+    - name: CLASS_IDS_START_AT_ONE
+      value: "0"
+    - name: INFER_DTYPE
+      value: fp32
+    - name: COMPILE_OPTIMIZED
+      value: "1"
+  triggers:
+    http:
+      kind: http
+      maxWorkers: 2
+      attributes:
+        maxRequestBodySize: 33554432
+  build:
+    # Use the CPU image you built from the Dockerfile above
+    baseImage: cvat-rfdetr:latest-cpu
+    commands:
+      - pip install -q msgpack nuclio-sdk==0.5.9
+      - pip install -q ultralytics
+    codeEntryType: source
+  volumes:
+    - volume:
+        name: model-volume
+        hostPath:
+          path: /home/michael/cvat/serverless/project/first
+      volumeMount:
+        name: model-volume
+        mountPath: /opt/nuclio/models
